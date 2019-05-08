@@ -1,0 +1,94 @@
+
+/* Query 1 - Biggest chunk of sales, by country, for each sales support agent */
+
+With t1 AS
+	(SELECT e.firstname AS First_Name, e.lastname AS Last_Name,
+	        i.billingcountry AS Bill_Country,SUM(i.total) AS Total_Sales
+	 FROM Invoice i
+	 JOIN Customer c
+	 ON i.customerid=c.customerid
+	 JOIN Employee e
+	 ON c.supportrepid=e.employeeid
+	 GROUP BY 1,2,3)
+SELECT First_Name, Last_Name, Bill_Country, MAX(Total_Sales) AS Most_Sales
+FROM t1
+GROUP BY 1,2
+ORDER BY 4 DESC;
+
+
+/*Query 2 - Top 5 Most Downloaded Albums by Country. */
+
+WITH t1 AS
+	(SELECT  al.title AS Album_Title, COUNT(il.quantity) AS Downloads,
+	         i.billingcountry AS Country
+	 FROM Artist a
+	 JOIN Album al
+	 ON a.artistid=al.artistid
+	 JOIN Track t
+	 ON al.albumid=t.albumid
+	 JOIN InvoiceLine il
+	 ON t.trackid=il.trackid
+	 JOIN Invoice i
+	 ON il.invoiceid=i.invoiceid
+	 GROUP BY 1,3),
+t2 AS
+	 (SELECT Country, MAX(Downloads) AS Downloads
+	  FROM t1
+	  GROUP BY 1)
+
+SELECT t1.Album_Title, t1.Downloads, t1.Country
+FROM t1
+JOIN t2
+ON t1.Country=t2.Country AND t1.Downloads=t2.Downloads
+GROUP BY 1,3
+ORDER BY 2 DESC
+LIMIT 5;
+
+
+/*Query 3 - Most downloads of MPEG Audio files by country*/
+
+WITH t1 AS
+	(SELECT m.name AS Media_Name, i.billingcountry AS Top_Billing_Country,
+	        COUNT(il.quantity) AS Downloads
+	 FROM MediaType m
+	 JOIN Track t
+	 ON t.mediatypeid=m.mediatypeid
+	 JOIN InvoiceLine il
+	 ON il.trackid=t.trackid
+	 JOIN Invoice i
+	 ON il.invoiceid=i.invoiceid
+	 WHERE Media_Name = 'MPEG audio file'
+	 GROUP BY 1,2),
+t2 AS
+	 (SELECT Media_Name,  Top_Billing_Country, MAX(Downloads) AS Downloads
+	  FROM t1
+	  GROUP BY 1,2)
+SELECT t1.Media_Name,t1.Top_Billing_Country, t1.Downloads
+FROM t1
+JOIN t2
+ON t1.Media_Name=t2.Media_Name AND t1.Downloads=t2.Downloads
+GROUP BY 1,2
+ORDER BY 3 DESC;
+
+
+/*Query 4 - Number of artists in the three tiers of downloads. */
+
+With t1 AS
+    (SELECT a.name AS Artist_Name,
+	        CASE WHEN COUNT(il.quantity) <= 20 THEN 'Bottom Tier'
+	        WHEN COUNT(il.quantity) <=40 THEN 'Middle Tier'
+	        ELSE 'Top Tier' END Artist_Tier
+	 FROM Artist a
+	 LEFT JOIN Album al
+	 ON a.artistid=al.artistid
+	 LEFT JOIN Track t
+	 ON al.albumid=t.albumid
+	 LEFT JOIN InvoiceLine il
+	 ON t.trackid=il.trackid
+	 LEFT JOIN Invoice i
+	 ON il.invoiceid=i.invoiceid
+	 GROUP BY 1)
+SELECT Artist_Tier, COUNT(*)
+FROM t1
+GROUP BY 1
+ORDER BY 2;
